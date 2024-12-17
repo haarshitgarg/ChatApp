@@ -17,9 +17,7 @@ class GRPCHandler: ConnectivityStateDelegate {
     private var client_: Org_Harshit_Messenger_Chat_ChatServiceNIOClient
     public var call_: BidirectionalStreamingCall<Org_Harshit_Messenger_Chat_ChatMessage, Org_Harshit_Messenger_Chat_ChatMessage>?
     
-    private var responseCallback_: (Org_Harshit_Messenger_Chat_ChatMessage) -> Void = { response in
-        logger_.info("Default implementation")
-    }
+    public var client_callback_: ((Org_Harshit_Messenger_Chat_ChatMessage) -> Void)? = nil
     
     private init(){
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -34,11 +32,11 @@ class GRPCHandler: ConnectivityStateDelegate {
         return instance;
     }
     
-    public func startClient(handler: @escaping (_ response: Org_Harshit_Messenger_Chat_ChatMessage)->Void){
+    public func startClient() {
         // Create a channel
         logger_.debug("[GRPC HANDLER] Starting the client")
         call_ = client_.sendMessagesGRPC { response in
-            handler(response)
+            self.client_callback_?(response)
         }
     }
     

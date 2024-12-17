@@ -20,7 +20,7 @@ struct MessageView: View {
     
     init(friend: Binding<String>) {
         self._friend = friend
-        grpc_handler_.startClient(handler: self.receiveCallback)
+        grpc_handler_.startClient()
     }
     
     var body: some View {
@@ -50,6 +50,11 @@ struct MessageView: View {
             .padding()
         }
         .onAppear{
+            self.grpc_handler_.client_callback_ = { response in
+                DispatchQueue.main.async {
+                    messages.append(ChatMessage(message: response.message, type: .Received, time: response.timestamp))
+                }
+            }
             reload()
         }
     }
@@ -62,20 +67,6 @@ struct MessageView: View {
             logger_.debug("[MESSAGE VIEW] Running Tasks")
             try await grpc_handler_.sendMessage(msg: self.message, to: self.friend)
         }
-    }
-    
-    private func receiveCallback(_ response: Org_Harshit_Messenger_Chat_ChatMessage) {
-        // Received message from the server
-        logger_.debug("[MESSAGE VIEW] Received message from the server")
-        logger_.debug("[MESSAGE VIEW] Received message: \(response.message) from \(response.user)")
-        // Add message to he MessageList (I also need to keep the messages sorted based on time)
-        DispatchQueue.main.async {
-            self.messages.append(ChatMessage(message: response.message, type: .Received, time: response.timestamp))
-        }
-        //messages.sort { msg1, msg2 in
-        //    if(msg1.time > msg2.time){ return false;}
-        //    return true
-        //}
     }
     
     private func updateCoreData() async {
