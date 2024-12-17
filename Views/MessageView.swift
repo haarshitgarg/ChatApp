@@ -20,7 +20,7 @@ struct MessageView: View {
     
     init(friend: Binding<String>) {
         self._friend = friend
-        grpc_handler_.startClient(handler: self.receiveCallback)
+        grpc_handler_.startClient()
     }
     
     var body: some View {
@@ -29,12 +29,14 @@ struct MessageView: View {
             ScrollView {
                 ForEach(messages, id: \.self) { msg in
                     HStack{
-                        if(msg.type == .Sent) {
-                            Spacer()
-                        }
-                        Text(msg.message).padding(.horizontal)
-                        if(msg.type == .Received) {
-                            Spacer()
+                        if(msg.friend == self.friend.replacingOccurrences(of: "\"", with: "")) {
+                            if(msg.type == .Sent) {
+                                Spacer()
+                            }
+                            Text(msg.message).padding(.horizontal)
+                            if(msg.type == .Received) {
+                                Spacer()
+                            }
                         }
                     }
                 }
@@ -50,6 +52,13 @@ struct MessageView: View {
             .padding()
         }
         .onAppear{
+            self.grpc_handler_.client_callback_ = { response in
+                DispatchQueue.main.async {
+                    logger_.debug("[MESSAGE VIEW] I am \(view_controller_.cache_.username) and my friend is \(response.user) whereas self.friend is \(self.friend)")
+                    messages.append(ChatMessage(message: response.message, type: .Received, time: response.timestamp, friend: response.user))
+                    // Sort the messages here
+                }
+            }
             reload()
         }
     }
@@ -57,25 +66,11 @@ struct MessageView: View {
     private func send() {
         // Adding message to the MessageList (I also need to keep the messages sorted)
         // Send message to the Server
-        messages.append(ChatMessage(message: self.message, type: .Sent, time: Int64(Date().timeIntervalSince1970*1000)))
+        messages.append(ChatMessage(message: self.message, type: .Sent, time: Int64(Date().timeIntervalSince1970*1000), friend: self.friend.replacingOccurrences(of: "\"", with: "")))
         Task {
             logger_.debug("[MESSAGE VIEW] Running Tasks")
             try await grpc_handler_.sendMessage(msg: self.message, to: self.friend)
         }
-    }
-    
-    private func receiveCallback(_ response: Org_Harshit_Messenger_Chat_ChatMessage) {
-        // Received message from the server
-        logger_.debug("[MESSAGE VIEW] Received message from the server")
-        logger_.debug("[MESSAGE VIEW] Received message: \(response.message) from \(response.user)")
-        // Add message to he MessageList (I also need to keep the messages sorted based on time)
-        DispatchQueue.main.async {
-            self.messages.append(ChatMessage(message: response.message, type: .Received, time: response.timestamp))
-        }
-        //messages.sort { msg1, msg2 in
-        //    if(msg1.time > msg2.time){ return false;}
-        //    return true
-        //}
     }
     
     private func updateCoreData() async {
@@ -91,7 +86,7 @@ struct MessageView: View {
         do {
             let result = try PersistantModel.instance.container.viewContext.fetch(request)
             messages = result.map { res in
-                return ChatMessage(message: res.message ?? "", type: .Sent, time: res.time_sent)
+                return ChatMessage(message: res.message ?? "", type: .Sent, time: res.time_sent, friend: self.friend)
             }
         }
         catch {
@@ -105,11 +100,13 @@ struct ChatMessage: Hashable {
     public var message: String
     public var type: ChatMessageType
     public var time: Int64
+    public var friend: String
     
-    init(message: String, type: ChatMessageType, time: Int64) {
+    init(message: String, type: ChatMessageType, time: Int64, friend: String) {
         self.message = message
         self.type = type
         self.time = time
+        self.friend = friend
     }
 }
 
