@@ -19,3 +19,10 @@ Sends a request to Chatterbox server who can return 400, 401, 404, 500
 After the user is validated by the server, which also returns a jwt token, it switches the view to the application's main page. It requests the list of all friends and show them to the left. To the right you have message window.
 
 ![Main Page](images/MainView.png)
+
+## Messaging Friends
+
+In the left pannel click at the name of friends in your friend list and send a text.
+Each client sends a message to the server which in turn redirects the message to the corresponding user.
+![Message Page](images/MessageView.png)
+
