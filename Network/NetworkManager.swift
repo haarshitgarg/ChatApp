@@ -113,6 +113,50 @@ class NetworkManager {
         }
         task.resume()
     }
+    
+    public func syncToServer(completion: @escaping([MessagesFromServer]) -> Void) throws{
+        let baseURL = "http://localhost:8082/syncChat"
+        
+        guard let url: URL = URLComponents(string: baseURL)?.url else {
+            throw NetworkManagerExeptions.URLInvalid
+        }
+        var request: URLRequest = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-type")
+        request.setValue(view_controller_.cache_.jwt, forHTTPHeaderField: "Authorization")
+        request.url?.append(queryItems: [URLQueryItem(name: "username", value: view_controller_.cache_.username),
+                                        URLQueryItem(name: "lastSync", value: "0")])
+        
+        print("[NETWORK MANAGER] URL Request: \(request.url as URL?)")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                logger_.error("[NETWORK MANAGER] Found an error in http request task: \(error)")
+            }
+
+            guard let http_response: HTTPURLResponse = response as? HTTPURLResponse else {
+                logger_.error("[NETWORK MANAGER] Found an error in http request task, response is not empty: \(error)")
+                return
+            }
+            logger_.debug("[NETWORK MANAGER] HTTP status: \(http_response.statusCode)")
+            
+            guard let data = data else {
+                logger_.error("[NETWORK MANAGER] data is empty")
+                return
+            }
+            do {
+                let messagesList: [MessagesFromServer] = try JSONDecoder().decode([MessagesFromServer].self, from: data)
+                //let chat_response: ContactList = try JSONDecoder().decode(ContactList.self, from: data)
+                logger_.debug("[NETWORK MANAGER] Chat friends list: \(messagesList)")
+                completion(messagesList)
+            }
+            catch {
+                logger_.error("[NETWORK MANAGER] Error: \(error)")
+                return
+            }
+        }
+        task.resume()
+    }
 }
 
 struct AuthRequest: Codable {
@@ -154,5 +198,23 @@ struct ContactInformation: Codable{
     init(name: String, lastChat: String) {
         self.name = name
         self.lastChat = lastChat
+    }
+}
+
+struct MessagesFromServer: Codable {
+    public var id: String
+    public var msg_from: String
+    public var msg_to: String
+    public var msg: String
+    public var time: Int64
+    public var breceived: Bool
+    
+    init(id: String, msg_from: String, msg_to: String, msg: String, time: Int64, breceived: Bool) {
+        self.id = id
+        self.msg_from = msg_from
+        self.msg_to = msg_to
+        self.msg = msg
+        self.time = time
+        self.breceived = breceived
     }
 }
