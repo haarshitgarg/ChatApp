@@ -106,6 +106,7 @@ struct ChatView: View {
         logger_.debug("[CHAT VIEW] Reloading...")
         do {
             try network_manager_.getContactInformation(completion: self.chatGetCompletion)
+            
         }
         catch {
             logger_.debug("[CHAT VIEW] Got error: \(error.localizedDescription)")
